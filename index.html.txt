@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floral Rangoli Artist</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ff0055;
+            --secondary: #ff9900;
+            --bg-color: #0f0518;
+            --glass: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none; /* Prevent scrolling while drawing */
+        }
+
+        body {
+            background-color: var(--bg-color);
+            overflow: hidden;
+            font-family: 'Cinzel', serif;
+            color: white;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none; /* Let clicks pass through to canvas */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+            pointer-events: auto;
+        }
+
+        h1 {
+            font-family: 'Dancing Script', cursive;
+            font-size: 3rem;
+            background: linear-gradient(45deg, #ff0055, #ff9900, #ffee00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(255, 0, 85, 0.5);
+            margin-bottom: 5px;
+        }
+
+        p.subtitle {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            letter-spacing: 2px;
+        }
+
+        /* Controls */
+        .controls {
+            pointer-events: auto;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255,255,255,0.2);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-family: 'Cinzel', serif;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+        }
+
+        button:hover {
+            background: white;
+            color: var(--bg-color);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+
+        button.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100px;
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 5px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .color-picker {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid white;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        
+        input[type="color"] {
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        /* Instructions Overlay */
+        #hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255,255,255,0.5);
+            font-size: 1.2rem;
+            pointer-events: none;
+            animation: fadeOut 3s forwards;
+            animation-delay: 2s;
+            text-align: center;
+        }
+
+        @keyframes fadeOut {
+            to { opacity: 0; visibility: hidden; }
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 2rem; }
+            .controls { padding: 15px; gap: 10px; }
+            button { padding: 8px 15px; font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- UI Layer -->
+    <div id="ui-layer">
+        <header>
+            <h1>Digital Rangoli</h1>
+            <p class="subtitle">SYMMETRICAL FLOWER ART</p>
+        </header>
+
+        <div id="hint">Touch & Drag to Bloom</div>
+
+        <div class="controls">
+            <div class="slider-group">
+                <span>Petals:</span>
+                <input type="range" id="symmetry" min="4" max="24" value="8">
+                <span id="symmetry-val">8</span>
+            </div>
+            
+            <div class="slider-group">
+                <span>Size:</span>
+                <input type="range" id="brushSize" min="1" max="50" value="5">
+            </div>
+
+            <div class="color-picker" style="background: linear-gradient(45deg, #ff0055, #ff9900);">
+                <input type="color" id="colorInput" value="#ff0055">
+            </div>
+
+            <button id="rainbowBtn" class="active">Rainbow Mode</button>
+            <button id="clearBtn">Clear Canvas</button>
+            <button id="downloadBtn">Save</button>
+        </div>
+    </div>
+
+    <!-- Canvas Layer -->
+    <div id="canvas-container">
+        <canvas id="artCanvas"></canvas>
+        <!-- Background particles canvas -->
+        <canvas id="bgCanvas" style="position: absolute; top:0; left:0; z-index: -1; pointer-events: none;"></canvas>
+    </div>
+
+    <script>
+        // --- Setup ---
+        const canvas = document.getElementById('artCanvas');
+        const ctx = canvas.getContext('2d');
+        const bgCanvas = document.getElementById('bgCanvas');
+        const bgCtx = bgCanvas.getContext('2d');
+        
+        let width, height, centerX, centerY;
+        
+        // State
+        let isDrawing = false;
+        let hue = 0;
+        let symmetry = 8;
+        let brushSize = 5;
+        let isRainbow = true;
+        let userColor = '#ff0055';
+        let mouse = { x: 0, y: 0 };
+        let lastMouse = { x: 0, y: 0 };
+
+        // --- Initialization ---
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
+
+            canvas.width = width;
+            canvas.height = height;
+            bgCanvas.width = width;
+            bgCanvas.height = height;
+
+            // Set blend mode for glowing effect
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- Interaction Logic ---
+        function startDrawing(e) {
+            isDrawing = true;
+            updateCoordinates(e);
+            lastMouse = { ...mouse };
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function updateCoordinates(e) {
+            if (e.touches) {
+                mouse.x = e.touches[0].clientX;
+                mouse.y = e.touches[0].clientY;
+            } else {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+            }
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault(); // Stop scrolling on mobile
+            updateCoordinates(e);
+
+            // Calculate Angle and Distance relative to center
+            const relX = mouse.x - centerX;
+            const relY = mouse.y - centerY;
+            const lastRelX = lastMouse.x - centerX;
+            const lastRelY = lastMouse.y - centerY;
+
+            // Prepare Brush Style
+            if (isRainbow) {
+                ctx.strokeStyle = `hsl(${hue}, 100%, 60%)`;
+                ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+                hue = (hue + 2) % 360;
+            } else {
+                ctx.strokeStyle = userColor;
+                ctx.shadowColor = userColor;
+            }
+            
+            ctx.lineWidth = brushSize;
+            ctx.shadowBlur = 15;
+
+            // Draw Symmetrically
+            const angleStep = (Math.PI * 2) / symmetry;
+
+            ctx.save();
+            ctx.translate(centerX, centerY);
+
+            for (let i = 0; i < symmetry; i++) {
+                ctx.rotate(angleStep);
+                
+                ctx.beginPath();
+                ctx.moveTo(lastRelX, lastRelY);
+                ctx.lineTo(relX, relY);
+                ctx.stroke();
+
+                // Mirror for extra kaleidoscope effect (optional, makes it perfectly symmetrical L/R)
+                ctx.save();
+                ctx.scale(1, -1);
+                ctx.beginPath();
+                ctx.moveTo(lastRelX, lastRelY);
+                ctx.lineTo(relX, relY);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            ctx.restore();
+
+            lastMouse = { ...mouse };
+        }
+
+        // Event Listeners
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        canvas.addEventListener('touchstart', startDrawing, {passive: false});
+        canvas.addEventListener('touchmove', draw, {passive: false});
+        canvas.addEventListener('touchend', stopDrawing);
+
+        // --- Controls Logic ---
+        document.getElementById('symmetry').addEventListener('input', (e) => {
+            symmetry = parseInt(e.target.value);
+            document.getElementById('symmetry-val').innerText = symmetry;
+        });
+
+        document.getElementById('brushSize').addEventListener('input', (e) => {
+            brushSize = parseInt(e.target.value);
+        });
+
+        const colorInput = document.getElementById('colorInput');
+        colorInput.addEventListener('input', (e) => {
+            userColor = e.target.value;
+            isRainbow = false;
+            rainbowBtn.classList.remove('active');
+            document.querySelector('.color-picker').style.background = userColor;
+        });
+
+        const rainbowBtn = document.getElementById('rainbowBtn');
+        rainbowBtn.addEventListener('click', () => {
+            isRainbow = !isRainbow;
+            if(isRainbow) rainbowBtn.classList.add('active');
+            else rainbowBtn.classList.remove('active');
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            // Fade out instead of instant clear for better effect
+            ctx.save();
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+            ctx.fillRect(0, 0, width, height);
+            ctx.restore();
+            ctx.globalCompositeOperation = 'lighter'; // Reset
+        });
+
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'my-rangoli.png';
+            // Combine bg and art for download
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tCtx = tempCanvas.getContext('2d');
+            
+            // Fill dark background
+            tCtx.fillStyle = '#0f0518'; 
+            tCtx.fillRect(0, 0, width, height);
+            
+            // Draw art
+            tCtx.drawImage(canvas, 0, 0);
+            
+            link.href = tempCanvas.toDataURL();
+            link.click();
+        });
+
+        // --- Background Floating Flowers Animation ---
+        const particles = [];
+
+        class FlowerParticle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height - height; // Start above screen
+                this.size = Math.random() * 10 + 5;
+                this.speed = Math.random() * 1 + 0.5;
+                this.angle = Math.random() * 360;
+                this.spinSpeed = (Math.random() - 0.5) * 0.05;
+                this.petals = Math.floor(Math.random() * 4) + 4; // 4 to 8 petals
+                this.color = `hsla(${Math.random() * 360}, 70%, 60%, 0.2)`;
+            }
+
+            update() {
+                this.y += this.speed;
+                this.angle += this.spinSpeed;
+                if (this.y > height + 50) {
+                    this.reset();
+                    this.y = -50;
+                }
+            }
+
+            draw() {
+                bgCtx.save();
+                bgCtx.translate(this.x, this.y);
+                bgCtx.rotate(this.angle);
+                bgCtx.fillStyle = this.color;
+                
+                for (let i = 0; i < this.petals; i++) {
+                    bgCtx.rotate((Math.PI * 2) / this.petals);
+                    bgCtx.beginPath();
+                    bgCtx.ellipse(0, this.size, this.size/2, this.size, 0, 0, Math.PI * 2);
+                    bgCtx.fill();
+                }
+                
+                // Center dot
+                bgCtx.fillStyle = 'rgba(255,255,255,0.3)';
+                bgCtx.beginPath();
+                bgCtx.arc(0, 0, this.size/3, 0, Math.PI * 2);
+                bgCtx.fill();
+
+                bgCtx.restore();
+            }
+        }
+
+        // Create particles
+        for (let i = 0; i < 30; i++) {
+            particles.push(new FlowerParticle());
+        }
+
+        function animateBg() {
+            bgCtx.clearRect(0, 0, width, height);
+            
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            requestAnimationFrame(animateBg);
+        }
+
+        animateBg();
+
+    </script>
+</body>
+</html>
